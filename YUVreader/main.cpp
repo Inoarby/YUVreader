@@ -29,3 +29,5 @@ int _tmain(int argc, _TCHAR* argv[])
 	YUVclose(yuv_file);
 	return 0;
 }
+
+
