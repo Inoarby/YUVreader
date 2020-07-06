@@ -20,6 +20,29 @@ YUV_FILE* YUVopen(const char* file_name, int width, int height, const char* form
 	return(yuv_file);
 }
 
+YUV_FRAME* create_frame(YUV_FILE* yuv_file){
+
+	YUV_FRAME* frame = (YUV_FRAME*)malloc(sizeof(YUV_FRAME));
+
+	int res = yuv_file->width * yuv_file->height;
+	frame->yuv_file = yuv_file;
+	frame->y_comp = (Y_COMP*)malloc(sizeof(Y_COMP) * res);
+	frame->u_comp = (U_COMP*)malloc(sizeof(U_COMP) * (int)(res / 4));
+	frame->v_comp = (V_COMP*)malloc(sizeof(V_COMP) * (int)(res / 4));
+
+	return(frame);
+}
+
+int deconstruct_frame(YUV_FRAME* frame){
+
+	free(frame->y_comp);
+	free(frame->u_comp);
+	free(frame->v_comp);
+
+	free(frame);
+	return(0);
+}
+
 int YUVclose(YUV_FILE* yuv_file){
 
 	int i = fclose(yuv_file->fp);
@@ -31,20 +54,23 @@ int YUVclose(YUV_FILE* yuv_file){
 }
 
 
-int YUVread_frame(uint8_t* y_comp, uint8_t* u_comp, uint8_t* v_comp, YUV_FILE* yuv_file){
+int YUVread_frame(YUV_FRAME* yuv_frame){
 
+	YUV_FILE* yuv_file = yuv_frame->yuv_file;
 	int luma_res, chroma_res;
 	size_t pixel_depth;
 
 	if (!strcmp(yuv_file->FORMAT, "i420")){
 		luma_res = yuv_file->width * yuv_file->height;
-		chroma_res = (int)(luma_res / 4); // What if resolution does not devide 4?
-		pixel_depth = sizeof(uint8_t);
+		chroma_res = (int)(luma_res / 4);	// What if resolution does not devide 4?
+		pixel_depth = sizeof(Y_COMP);
 	}
 
-	size_t noy = fread(y_comp, pixel_depth, luma_res, yuv_file->fp);
-	size_t nou = fread(u_comp, pixel_depth, chroma_res, yuv_file->fp);
-	size_t nov = fread(v_comp, pixel_depth, chroma_res, yuv_file->fp);
+	//yuv_frame->yuv_file = yuv_file;
+	yuv_frame->frame_count = yuv_file->frame_count;
+	size_t noy = fread(yuv_frame->y_comp, pixel_depth, luma_res, yuv_file->fp);
+	size_t nou = fread(yuv_frame->u_comp, pixel_depth, chroma_res, yuv_file->fp);
+	size_t nov = fread(yuv_frame->v_comp, pixel_depth, chroma_res, yuv_file->fp);
 
 	// Consider checking read validity here.
 	//if () return();
@@ -54,9 +80,9 @@ int YUVread_frame(uint8_t* y_comp, uint8_t* u_comp, uint8_t* v_comp, YUV_FILE* y
 }
 
 
-int YUVwrite_frame(const uint8_t* y_comp, const uint8_t* u_comp, const uint8_t* v_comp, 
-				   const YUV_FILE* yuv_file, FILE* fp){
+int YUVwrite_frame(const YUV_FRAME* yuv_frame, FILE* fp){
 
+	const YUV_FILE* yuv_file = yuv_frame->yuv_file;
 	int luma_res, chroma_res;
 	size_t pixel_depth;
 
@@ -64,12 +90,12 @@ int YUVwrite_frame(const uint8_t* y_comp, const uint8_t* u_comp, const uint8_t* 
 
 		luma_res = yuv_file->width * yuv_file->height;
 		chroma_res = (int)(luma_res / 4);
-		pixel_depth = sizeof(uint8_t);
+		pixel_depth = sizeof(Y_COMP);		// Why Y_COMP?
 	}
 
-	size_t noy = fwrite(y_comp, pixel_depth, luma_res, fp);
-	size_t nou = fwrite(u_comp, pixel_depth, chroma_res, fp);
-	size_t nov = fwrite(v_comp, pixel_depth, chroma_res, fp);
+	size_t noy = fwrite(yuv_frame->y_comp, pixel_depth, luma_res, fp);
+	size_t nou = fwrite(yuv_frame->u_comp, pixel_depth, chroma_res, fp);
+	size_t nov = fwrite(yuv_frame->v_comp, pixel_depth, chroma_res, fp);
 
 	return(0);
 }
